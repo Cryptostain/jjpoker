@@ -10,7 +10,7 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       // Once cached the app runs offline; there is nothing to fetch from a network.
-      includeAssets: ["icon.svg"],
+      includeAssets: ["icon-512.png"],
       manifest: {
         name: "Side Pots",
         short_name: "Side Pots",
@@ -23,10 +23,16 @@ export default defineConfig({
         scope: "/jjpoker/",
         icons: [
           {
-            src: "icon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
-            purpose: "any maskable",
+            src: "icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
           },
         ],
       },
