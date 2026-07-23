@@ -89,10 +89,18 @@ let uid = 0;
 const mk = (i) => ({ id: `s${uid++}`, name: `P${i}`, bets: ["", "", "", ""], foldedAt: null, allInAt: null });
 const wipe = (s) => ({ ...s, bets: ["", "", "", ""], foldedAt: null, allInAt: null });
 
+// Post the blinds preflop: first seat = SB, second seat = BB. Returns a new array.
+const postBlinds = (arr, sb, bb) =>
+  arr.map((s, i) => {
+    if (i > 1) return s;
+    const v = i === 0 ? sb : bb;
+    return { ...s, bets: s.bets.map((b, k) => (k === 0 ? String(N(v)) : b)) };
+  });
+
 export default function App() {
-  const [seats, setSeats] = useState(() => [mk(1), mk(2), mk(3)]);
   const [sb, setSb] = useState("100");
   const [bb, setBb] = useState("200");
+  const [seats, setSeats] = useState(() => postBlinds([mk(1), mk(2), mk(3)], "100", "200"));
   const [ante, setAnte] = useState("200");
   const [anteMode, setAnteMode] = useState("table"); // table | each | off
   const [linked, setLinked] = useState(true);
@@ -166,10 +174,6 @@ export default function App() {
     if (!tSeat || !canAct(tSeat)) return;
     setBet(tSeat.id, applyKey(tSeat.bets[active], k));
   };
-  const bump = (v) => {
-    if (target.kind !== "seat" || !tSeat || !canAct(tSeat)) return;
-    setBet(tSeat.id, String(N(tSeat.bets[active]) + v));
-  };
   const advance = (fromId) => {
     const i = seats.findIndex((s) => s.id === fromId);
     for (let k = 1; k <= seats.length; k++) {
@@ -215,7 +219,7 @@ export default function App() {
     if (first) pick(first);
   };
   const newHand = () => {
-    setSeats((s) => s.map(wipe));
+    setSeats((s) => postBlinds(s.map(wipe), sb, bb));
     setStreets(1); setActive(0); setPicks({}); setPad(true);
     setTarget({ kind: "seat", id: seats[0].id });
   };
@@ -488,8 +492,6 @@ export default function App() {
             {target.kind === "seat" && !locked && (
               <div className="noscroll" style={{ display: "flex", gap: 6, overflowX: "auto", padding: "0 0 8px" }}>
                 {highest > 0 && <Quick on={call}>Call {F(highest)}</Quick>}
-                <Quick on={() => bump(N(sb))}>+ SB {F(N(sb))}</Quick>
-                <Quick on={() => bump(N(bb))}>+ BB {F(N(bb))}</Quick>
               </div>
             )}
 
@@ -524,7 +526,7 @@ function Shell({ children }) {
   return (
     <div style={{ background: C.bg, color: C.text, fontFamily: SANS, display: "flex", flexDirection: "column", height: "100dvh" }}>
       <style>{`* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        button { font-family: inherit; }
+        button { font-family: inherit; color: inherit; }
         button:focus-visible { outline: 2px solid ${C.go}; outline-offset: 2px; }
         .noscroll::-webkit-scrollbar { display: none; }
         .noscroll { scrollbar-width: none; }`}</style>
