@@ -1,115 +1,91 @@
 # Side Pots
 
-A calculator for splitting multi-way all-in pots at a live tournament table.
+A simple calculator for splitting poker pots when players go all-in for
+different amounts.
 
-You know the situation: three people are all in for different amounts, one of them
-folded earlier with chips already in, and now everyone is staring at the felt trying
-to work out who is eligible for what. This does that part.
+You know the moment: three people are all-in for different amounts, someone
+folded earlier with chips already in the middle, and now everyone's staring at
+the table trying to figure out who can win what. This app does that math for you.
 
-It does not know your cards, your stack, or who is sitting where. You tell it what
-each player put in; it tells you how the pot splits and who can win each piece.
-
----
-
-## Using it at the table
-
-The whole app is one scrolling page.
-
-**1. Levels.** Three tiles at the top: small blind, big blind, ante. Tap one to
-edit it with the keypad. These change constantly in hyper turbos, so they sit up
-front rather than buried in settings.
-
-**2. Streets.** Preflop is open by default. For each player, tap their row and type
-what they put in *on that street*. Their running total for the hand shows underneath.
-
-- **Call** fills in whatever is needed to match the largest total, then jumps to the next player.
-- **Fold** marks them out. Their chips stay in the pot — they just can't win any of it.
-- **All in** flags them as having nothing left. From then on the keypad locks for
-  them, `Next` skips over them, and new streets stop asking them for money.
-- **+ SB** and **+ BB** add a blind-sized amount, for posting blinds by hand.
-- **Clear P2** wipes that player's whole entry across every street.
-
-Tap `+ Flop` to open the next street. When fewer than two players can still act,
-that button disappears and the app says *Everyone's committed*.
-
-**3. Pots.** Updates live. Each pot shows its size and exactly who is in it. Tap a
-name to mark the winner. Tap two names for a chop.
-
-**4. Payout.** Also live. Each winner gets a card showing what they take, broken
-down by which pot it came from, plus their net for the hand. If a split doesn't
-divide into whole chips, an amber card flags the leftover and you settle it at the
-table.
-
-`New hand` empties everything and keeps the players and levels.
+It doesn't know your cards or your chip stack. You just tell it what each player
+put in, and it tells you how the pot splits and who's eligible for each piece.
 
 ---
 
-## Antes
+## How to use it
 
-Antes are never typed in per player — they're always in the pot. Two modes in
-settings:
+The whole thing is one page you scroll down. There's a keypad at the bottom for
+typing numbers.
 
-- **One per hand** (default): a single ante for the whole table, which is what a
-  big-blind ante amounts to. It goes into the main pot as dead money. Because the
-  app doesn't track position, it isn't charged to any particular player, so it won't
-  show up in anyone's net line.
-- **One per player**: every seat is charged the ante. This *is* attributed, so nets
-  are exact.
+**1. Set the blinds.** At the top are three tiles: small blind, big blind, and
+ante. Tap one and type the amount.
 
----
+**2. Enter what each player put in.** Tap a player's row, then type how much they
+bet. Handy buttons:
 
-## The rules it follows
+- **Call** — fills in the amount needed to match the biggest bet, then moves to
+  the next player.
+- **Fold** — marks a player as folded. Their chips stay in the pot, but they
+  can't win it.
+- **All in** — marks a player as having no chips left.
+- **Clear** — wipes that player's entry.
 
-- Side pots depend only on the **total** each player committed. Streets, bet order,
-  and raise sizing are irrelevant to the math — they're bookkeeping so you can see
-  what happened.
-- Chips from folded players feed every pot layer they reached. They just aren't
-  eligible to win any of it.
-- If one player committed more than anyone else could match, the unmatched excess is
-  returned to them rather than forming a pot.
-- Split pots round down to the smallest chip in play (set in settings). Anything
-  left over is reported, not silently assigned — there's no dealer button here, so
-  the app has no basis for deciding who gets the odd chip.
+Tap **+ Flop** to move to the next round of betting.
 
-## What it deliberately doesn't do
+**3. Pick the winner.** As you enter bets, the app shows each pot and who's in it.
+Tap a name to mark them the winner. Tap two names if the pot is split.
 
-No stack tracking, no seat positions, no dealer button, no card input, no bounties,
-no hand history between hands. Each hand is entered fresh. Every one of those was
-considered and cut to keep the thing usable one-handed with a phone at a table.
+**4. See the payout.** The app shows exactly how much each winner takes and where
+it came from. If a split doesn't come out to whole chips, it flags the odd chip so
+you can settle it at the table.
 
-`All in` is a manual flag for this reason — detecting it automatically would require
-knowing everyone's stack.
+When the hand's over, tap **New hand** to clear everything and start fresh. Your
+players and blind amounts stay.
 
 ---
 
-## Running it
+## A few things to know
 
-Single React component, no backend, no dependencies beyond React itself. All state
-is in memory; nothing is persisted.
+- The math only cares about the **total** each player put in — not the order they
+  bet or the round it happened in.
+- Chips from folded players stay in the pot. They just can't win it.
+- If one player bet more than anyone else could match, the extra is given back to
+  them instead of going into a pot.
+- The app doesn't track chip stacks or seats, so **All in** and **Fold** are things
+  you tap yourself.
+
+---
+
+## How to run it
+
+This app is a small piece of software that runs in a web browser. To use it, you
+need to put it online (this is called "hosting"). Here's the easy way — no coding
+required:
+
+1. **Make a free account** at [Netlify](https://www.netlify.com) or
+   [Vercel](https://vercel.com). Both are free and made for exactly this.
+
+2. **Connect it to this project** on GitHub. When you sign up, they'll ask to link
+   your GitHub account — pick this repository (`jjpoker`) from the list.
+
+3. **Click deploy.** They build it and give you a web link (like
+   `your-app.netlify.app`) in about a minute.
+
+4. **Open the link on your phone.** In your phone's browser menu, tap **Add to Home
+   Screen**. Now it works like a normal app — even offline, with no internet.
+
+That's it. Once it's set up, you never have to touch it again.
+
+> **Note for developers:** it's a single React component (`jjpoker.jsx`) with no
+> backend and no dependencies beyond React. Drop it into a Vite React project as
+> `src/App.jsx`, run `npm install && npm run build`, and deploy the `dist/` folder.
+
+---
+
+## What's in this project
 
 ```
-npm create vite@latest sidepots -- --template react
-cd sidepots
-# drop the component in as src/App.jsx
-npm install
-npm run dev
-```
-
-## Putting it on a phone
-
-Deploy the built `dist/` to GitHub Pages, Cloudflare Pages, or Netlify — all free,
-all static, no server to run. Then add a web app manifest and a service worker and
-it installs to the home screen and runs offline. Once cached it never touches the
-network again; the app is pure client-side arithmetic.
-
-An APK is possible by wrapping the same code in Capacitor if you ever want one, but
-it isn't necessary — the hosted version works on iPhones too, and sideloaded APKs
-have no update path.
-
-## Layout
-
-```
-README.md      this file
-CLAUDE.md      context for AI coding agents
-src/App.jsx    the entire application
+README.md      this file — how to use and set up the app
+CLAUDE.md      notes for AI coding assistants
+jjpoker.jsx    the app itself
 ```
