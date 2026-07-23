@@ -86,21 +86,32 @@ function split(amount, winners, chipSize) {
 
 /* ── app ────────────────────────────────────────────────── */
 let uid = 0;
-const mk = (i) => ({ id: `s${uid++}`, name: `P${i}`, bets: ["", "", "", ""], foldedAt: null, allInAt: null });
+const mk = () => ({ id: `s${uid++}`, bets: ["", "", "", ""], foldedAt: null, allInAt: null });
 const wipe = (s) => ({ ...s, bets: ["", "", "", ""], foldedAt: null, allInAt: null });
 
-// Post the blinds preflop: first seat = SB, second seat = BB. Returns a new array.
-const postBlinds = (arr, sb, bb) =>
-  arr.map((s, i) => {
-    if (i > 1) return s;
-    const v = i === 0 ? sb : bb;
-    return { ...s, bets: s.bets.map((b, k) => (k === 0 ? String(N(v)) : b)) };
+// Positional label: last seat = BB, second-to-last = SB, the rest P1, P2, ... top-down.
+const label = (i, n) => (i === n - 1 ? "BB" : i === n - 2 ? "SB" : `P${i + 1}`);
+
+// Stamp a blind onto a seat's preflop cell only if it is untouched (still holds `old`).
+const stampBlind = (s, next, old) =>
+  String(N(s.bets[0])) === String(N(old))
+    ? { ...s, bets: s.bets.map((b, k) => (k === 0 ? String(N(next)) : b)) }
+    : s;
+
+// Post the blinds preflop onto the last two seats: SB at n-2, BB at n-1.
+const postBlinds = (arr, sb, bb) => {
+  const n = arr.length;
+  return arr.map((s, i) => {
+    if (i === n - 2) return { ...s, bets: s.bets.map((b, k) => (k === 0 ? String(N(sb)) : b)) };
+    if (i === n - 1) return { ...s, bets: s.bets.map((b, k) => (k === 0 ? String(N(bb)) : b)) };
+    return s;
   });
+};
 
 export default function App() {
   const [sb, setSb] = useState("100");
   const [bb, setBb] = useState("200");
-  const [seats, setSeats] = useState(() => postBlinds([mk(1), mk(2), mk(3)], "100", "200"));
+  const [seats, setSeats] = useState(() => postBlinds([mk(), mk(), mk()], "100", "200"));
   const [ante, setAnte] = useState("200");
   const [anteMode, setAnteMode] = useState("table"); // table | each | off
   const [linked, setLinked] = useState(true);
@@ -129,7 +140,10 @@ export default function App() {
   const canAct = (s) => !isOut(s) && !isShoved(s);
 
   const players = seats.map((s) => ({ id: s.id, chips: committedOf(s), folded: isOut(s) }));
-  const name = (id) => seats.find((s) => s.id === id)?.name ?? "?";
+  const name = (id) => {
+    const i = seats.findIndex((s) => s.id === id);
+    return i < 0 ? "?" : label(i, seats.length);
+  };
   const { pots, refund } = useMemo(
     () => computePots(players, anteLump),
     [JSON.stringify(players), anteLump]
@@ -167,9 +181,19 @@ export default function App() {
   const setBet = (id, v) => edit(id, (x) => ({ ...x, bets: x.bets.map((b, i) => (i === active ? v : b)) }));
   const tSeat = seats.find((s) => s.id === target.id);
 
+  // Change a blind and, preflop, re-post it onto its seat's cell if still untouched.
+  const setSbLive = (next) => {
+    if (active === 0) setSeats((s) => s.map((x, i) => (i === s.length - 2 ? stampBlind(x, next, sb) : x)));
+    setSb(next);
+  };
+  const setBbLive = (next) => {
+    if (active === 0) setSeats((s) => s.map((x, i) => (i === s.length - 1 ? stampBlind(x, next, bb) : x)));
+    setBb(next);
+  };
+
   const press = (k) => {
-    if (target.kind === "sb") return setSb((v) => applyKey(v, k));
-    if (target.kind === "bb") return setBb((v) => applyKey(v, k));
+    if (target.kind === "sb") return setSbLive(applyKey(sb, k));
+    if (target.kind === "bb") return setBbLive(applyKey(bb, k));
     if (target.kind === "ante") { setLinked(false); return setAnte((v) => applyKey(v, k)); }
     if (!tSeat || !canAct(tSeat)) return;
     setBet(tSeat.id, applyKey(tSeat.bets[active], k));
@@ -201,14 +225,17 @@ export default function App() {
     advance(tSeat.id);
   };
   const clearTarget = () => {
-    if (target.kind === "sb") return setSb("");
-    if (target.kind === "bb") return setBb("");
+    if (target.kind === "sb") return setSbLive("");
+    if (target.kind === "bb") return setBbLive("");
     if (target.kind === "ante") { setLinked(false); return setAnte(""); }
     if (tSeat) edit(tSeat.id, wipe);
   };
 
-  const addSeat = () => seats.length < 10 && setSeats((s) => [...s, mk(s.length + 1)]);
-  const dropSeat = () => seats.length > 3 && setSeats((s) => s.slice(0, -1));
+  // New seats slot in above the blinds (…, P, SB, BB); removing drops the last generic seat.
+  const addSeat = () =>
+    seats.length < 10 && setSeats((s) => [...s.slice(0, s.length - 2), mk(), ...s.slice(s.length - 2)]);
+  const dropSeat = () =>
+    seats.length > 3 && setSeats((s) => [...s.slice(0, s.length - 3), ...s.slice(s.length - 2)]);
 
   const nextStreet = () => {
     let idx;
@@ -224,8 +251,9 @@ export default function App() {
     setTarget({ kind: "seat", id: seats[0].id });
   };
 
+  const tName = tSeat ? name(tSeat.id) : "";
   const tLabel = target.kind === "sb" ? "small blind" : target.kind === "bb" ? "big blind"
-    : target.kind === "ante" ? "ante" : `${tSeat?.name ?? ""} · ${STREETS[active]}`;
+    : target.kind === "ante" ? "ante" : `${tName} · ${STREETS[active]}`;
   const locked = target.kind === "seat" && tSeat && !canAct(tSeat);
 
   /* ── settings ── */
@@ -255,14 +283,6 @@ export default function App() {
           <input value={chipSize} inputMode="numeric" onChange={(e) => setChipSize(e.target.value.replace(/[^\d]/g, ""))}
             style={{ width: "100%", background: C.card, border: "none", borderRadius: 11, color: C.text, fontSize: 17, padding: "13px 15px", ...num }} />
           <p style={{ color: C.dim, fontSize: 12, margin: "8px 2px 0" }}>Split pots round down to this. Anything left over is flagged.</p>
-
-          <p style={{ color: C.dim, fontSize: 13, margin: "26px 0 8px" }}>Names</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-            {seats.map((s) => (
-              <input key={s.id} value={s.name} onChange={(e) => edit(s.id, (x) => ({ ...x, name: e.target.value }))}
-                style={{ background: C.card, border: "none", borderRadius: 11, color: C.text, fontSize: 16, padding: "13px 15px", fontFamily: SANS }} />
-            ))}
-          </div>
 
           <div style={{ marginTop: 26 }}>
             <button onClick={() => setSheet(false)} style={{
@@ -313,10 +333,12 @@ export default function App() {
                 </button>
                 {open && (
                   <div style={{ padding: "0 10px 10px" }}>
-                    {seats.map((s) => {
+                    {seats.map((s, pi) => {
                       const on = target.kind === "seat" && s.id === target.id;
                       const gone = isOut(s) && s.foldedAt <= si;
                       const shoved = isShoved(s) && s.allInAt <= si;
+                      // Hide folded players on streets after the one they folded on.
+                      if (isOut(s) && s.foldedAt < si) return null;
                       return (
                         <button key={s.id} onClick={() => pick(s)} style={{
                           width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -324,7 +346,7 @@ export default function App() {
                           background: on ? C.key : "transparent", border: `2px solid ${on ? C.go : "transparent"}`,
                         }}>
                           <span>
-                            <span style={{ fontSize: 15, fontWeight: 600, color: gone ? C.dim : C.text }}>{s.name}</span>
+                            <span style={{ fontSize: 15, fontWeight: 600, color: gone ? C.dim : C.text }}>{label(pi, seats.length)}</span>
                             <span style={{ display: "block", fontSize: 12, color: gone ? C.no : C.dim, marginTop: 2, ...num }}>
                               {F(committedOf(s))} total{gone && committedOf(s) > 0 ? " — stays in the pot" : ""}
                             </span>
@@ -425,7 +447,7 @@ export default function App() {
 
           {takers.map((s) => (
             <div key={s.id} style={{ background: C.card, borderRadius: 14, padding: 17, marginBottom: 8 }}>
-              <div style={{ fontSize: 14, color: C.dim, marginBottom: 3 }}>{s.name} takes</div>
+              <div style={{ fontSize: 14, color: C.dim, marginBottom: 3 }}>{name(s.id)} takes</div>
               <div style={{ ...num, fontSize: 34, fontWeight: 700, lineHeight: 1, color: C.go }}>{F(payout.collects[s.id])}</div>
               <div style={{ marginTop: 11, borderTop: `1px solid ${C.line}`, paddingTop: 9 }}>
                 {(payout.detail[s.id] || []).map((d, k) => (
@@ -454,7 +476,7 @@ export default function App() {
             <div style={{ background: C.card, borderRadius: 14, overflow: "hidden", marginTop: 4 }}>
               {seats.filter((s) => !payout.collects[s.id]).map((s, i) => (
                 <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px", borderTop: i ? `1px solid ${C.line}` : "none", fontSize: 14 }}>
-                  <span style={{ color: C.dim }}>{s.name}</span>
+                  <span style={{ color: C.dim }}>{name(s.id)}</span>
                   <span style={{ ...num, color: committedOf(s) ? C.no : C.dim }}>{committedOf(s) ? `−${F(committedOf(s))}` : "0"}</span>
                 </div>
               ))}
@@ -478,11 +500,11 @@ export default function App() {
             padding: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", flex: 1, textAlign: "left",
           }}>
             {pad ? "▾ " : "▸ "}
-            {locked ? `${tSeat.name} is ${isOut(tSeat) ? "out" : "all in"}` : <>Typing <b style={{ color: C.text }}>{tLabel}</b></>}
+            {locked ? `${tName} is ${isOut(tSeat) ? "out" : "all in"}` : <>Typing <b style={{ color: C.text }}>{tLabel}</b></>}
           </button>
           {pad && (target.kind !== "seat" || tSeat) && (
             <button onClick={clearTarget} style={{ background: "none", border: `1px solid ${C.line}`, color: C.no, borderRadius: 9, padding: "6px 11px", fontSize: 13, cursor: "pointer", flexShrink: 0 }}>
-              Clear {target.kind === "sb" ? "SB" : target.kind === "bb" ? "BB" : target.kind === "ante" ? "ante" : tSeat.name}
+              Clear {target.kind === "sb" ? "SB" : target.kind === "bb" ? "BB" : target.kind === "ante" ? "ante" : tName}
             </button>
           )}
         </div>
