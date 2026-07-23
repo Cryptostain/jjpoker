@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0F1214"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#4FB286" stroke-width="26"
+          stroke-dasharray="52 34"/>
+  <circle cx="256" cy="256" r="96" fill="#191E21" stroke="#4FB286" stroke-width="14"/>
+  <text x="256" y="256" font-family="ui-monospace, monospace" font-size="90"
+        font-weight="700" fill="#F2F0EC" text-anchor="middle"
+        dominant-baseline="central">SP</text>
+</svg>

@@ -86,6 +86,5 @@ That's it. Once it's set up, you never have to touch it again.
 
 ```
 README.md      this file — how to use and set up the app
-CLAUDE.md      notes for AI coding assistants
 jjpoker.jsx    the app itself
 ```
